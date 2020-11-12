@@ -30,7 +30,7 @@ PATHS = {
 
 def is_location_match(description, location):
     verb, obj = description.split()
-    if verb == 'arrived':
+    if verb == 'arrived_in':
         if obj == location:
             return True
         return False
@@ -64,7 +64,7 @@ def test_find_journey():
         'saw onsen',
         'saw temple',
         'saw tower',
-        'arrived Hyogo'
+        'arrived_in Hyogo'
     ]
     it = Interpreter(guess, [start])
     for sentence in diary:
