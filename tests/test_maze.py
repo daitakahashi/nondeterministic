@@ -1,5 +1,6 @@
 
 from nondeterministic.interpreter import Interpreter
+from nondeterministic.state_tree import StateTree
 
 MAZE = '''
 ........
@@ -12,10 +13,6 @@ MAZE = '''
 +-+.+-+.
 ........
 '''.strip()
-
-TURNS = [
-    'right', '?', '?', '?', '?', 'left', '?', '?', 'left'
-]
 
 def maze_to_graph(maze):
     roads = {
@@ -44,6 +41,73 @@ def draw_path(location_history, maze):
         maze_ll[i][j] = elem
     return '\n'.join(''.join(row) for row in maze_ll)
 
+
+# part 1. find paths between two points
+def guess_solution(state, graph, goal):
+    current = state[-1]
+    if current == goal:
+        return [state]
+
+    return [
+        state + [next_location]
+        for next_location in graph[current]
+        if next_location not in state
+    ]
+
+def test_find_solutions():
+    start = (0, 0)
+    goal = (8, 0)
+    maze_graph = maze_to_graph(MAZE)
+
+    st = StateTree([[start]])
+    f = lambda x: guess_solution(x, maze_graph, goal)
+    for _ in range(len(maze_graph)): # a simple upper bound
+        st.step(f)
+    assert {draw_path(sol, MAZE) for sol in st} == {
+        expected.strip() for expected in ['''
+S##.....
+--#--+-.
+..###|..
+.+.|##|.
+..-++#|.
+|...|###
+|.|.|.|#
++-+.+-+#
+G#######
+''', '''
+S##.....
+--#--+-.
+###..|..
+#+.|..|.
+##-++.|.
+|###|...
+|.|#|.|.
++-+#+-+.
+G###....
+''', '''
+S#######
+--.--+-#
+.....|.#
+.+.|..|#
+..-++.|#
+|...|..#
+|.|.|.|#
++-+.+-+#
+G#######
+''', '''
+S#######
+--.--+-#
+#####|.#
+#+.|##|#
+##-++#|#
+|###|###
+|.|#|.|.
++-+#+-+.
+G###....
+''']}
+
+
+# part 2. find paths that satisfy ambiguous trajectory records
 def add(x, y):
     return (x[0] + y[0], x[1] + y[1])
 
@@ -57,7 +121,7 @@ def is_ok(location, graph, hist):
     current = hist[-1]
     return location in graph[current] and location not in hist
 
-def guess(state, observation, graph):
+def guess_wandering(state, observation, graph):
     location_history, direction = state
     current = location_history[-1]
 
@@ -66,7 +130,7 @@ def guess(state, observation, graph):
     next_location = add(current, direction)
     if is_ok(next_location, graph, location_history):
         new_state = (location_history + [next_location], direction)
-        nexts = guess(new_state, observation, graph)
+        nexts = guess_wandering(new_state, observation, graph)
     else:
         nexts = []
 
@@ -93,12 +157,15 @@ def guess(state, observation, graph):
 
 
 def test_maze_wandering():
+    turns = [
+        'right', '?', '?', '?', '?', 'left', '?', '?', 'left'
+    ]
     maze_graph = maze_to_graph(MAZE)
     it = Interpreter(
-        lambda x, o: guess(x, o, maze_graph),
+        lambda x, o: guess_wandering(x, o, maze_graph),
         ([(0, 0)], (0, 1))
     )
-    for turn in TURNS:
+    for turn in turns:
         it.interpret(turn)
     assert {draw_path(state[0], MAZE) for state in it} == {
         expected.strip() for expected in ['''
