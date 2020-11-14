@@ -3,18 +3,18 @@ from nondeterministic.interpreter import Interpreter
 
 MAZE = '''
 ........
-00.0000.
-.....0..
-.000..0.
-..000.0.
-0...0...
-0.0.0.0.
-000.000.
+--.--+-.
+.....|..
+.+.|..|.
+..-++.|.
+|...|...
+|.|.|.|.
++-+.+-+.
 ........
 '''.strip()
 
 TURNS = [
-    'right', 'right', 'left', 'left', 'right', 'left', 'right', 'left', 'left'
+    'right', '?', '?', '?', '?', 'left', '?', '?', 'left'
 ]
 
 def maze_to_graph(maze):
@@ -33,9 +33,9 @@ def maze_to_graph(maze):
         }
     return graph
 
-def draw_path(location_history):
+def draw_path(location_history, maze):
     maze_ll = [
-        list(row) for row in MAZE.split()
+        list(row) for row in maze.split()
     ]
     for i, j in location_history:
         maze_ll[i][j] = '#'
@@ -53,35 +53,42 @@ def rotate_left(x):
 def rotate_right(x):
     return (x[1], -x[0])
 
+def is_ok(location, graph, hist):
+    current = hist[-1]
+    return location in graph[current] and location not in hist
 
 def guess(state, observation, graph):
     location_history, direction = state
     current = location_history[-1]
-    nexts = []
 
     # 1. go straight if possible
     # (note: there are no records if it goes straight)
     next_location = add(current, direction)
-    if next_location in graph[current] \
-       and next_location not in location_history:
+    if is_ok(next_location, graph, location_history):
         new_state = (location_history + [next_location], direction)
-        nexts.extend(guess(new_state, observation, graph))
+        nexts = guess(new_state, observation, graph)
+    else:
+        nexts = []
 
     # 2. turn left or right according to the observation
-    if observation == 'left':
-        direction = rotate_left(direction)
-    elif observation == 'right':
-        direction = rotate_right(direction)
+    if observation == '?':
+        observation = ['left', 'right']
     else:
-        raise NotImplementedError(
-            'unknown direction {}'.format(observation)
-        )
-    next_location = add(current, direction)
-    if next_location in graph[current] \
-       and next_location not in location_history:
-        nexts.append(
-            (location_history + [next_location], direction)
-        )
+        observation = [observation]
+    for turn in observation:
+        if turn == 'left':
+            next_direction = rotate_left(direction)
+        elif turn == 'right':
+            next_direction = rotate_right(direction)
+        else:
+            raise RuntimeError('unknown turning direction {}'.format(
+                turn
+            ))
+        next_location = add(current, next_direction)
+        if is_ok(next_location, graph, location_history):
+            nexts.append(
+                (location_history + [next_location], next_direction)
+            )
     return nexts
 
 
@@ -93,14 +100,25 @@ def test_maze_wandering():
     )
     for turn in TURNS:
         it.interpret(turn)
-    assert [draw_path(state[0]) for state in it] == ['''
+    assert {draw_path(state[0], MAZE) for state in it} == {
+        expected.strip() for expected in ['''
 S##.....
-00#0000.
-###..0..
-#000..0.
-##000.0.
-0###0...
-0.0#0.0.
-000#000G
+--#--+-.
+###..|..
+#+.|..|.
+##-++.|.
+|###|...
+|.|#|.|.
++-+#+-+G
 ...#####
-'''.strip()]
+''', '''
+S#######
+--G--+-#
+###..|.#
+#+.|..|#
+##-++.|#
+|###|..#
+|.|#|.|#
++-+#+-+#
+...#####
+''']}
