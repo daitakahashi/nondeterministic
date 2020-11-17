@@ -1,6 +1,5 @@
 
 import pytest
-
 from nondeterministic.interpreter import Interpreter
 from nondeterministic.state_tree import StateTree
 
@@ -110,9 +109,8 @@ def test_unsatisfiable(interpreter):
     for x in input_seq:
         interpreter.interpret(x)
     assert drop_score(interpreter.state) == 0
-    with pytest.raises(RuntimeError):
-        # it is impossible to observe 4 after [0, 0]
-        interpreter.interpret(4)
+    interpreter.interpret(4)
+    assert not interpreter
 
 
 def test_long_run(interpreter):
@@ -174,8 +172,9 @@ def test_get_all_solutions_with_hist(interpreter_hist):
         final_results, key=lambda x: x[1]
     )
     # internal states are exhausted
+    assert not interpreter_hist
     with pytest.raises(RuntimeError):
         _ = interpreter_hist.state
-    with pytest.raises(RuntimeError):
-        interpreter_hist.interpret(3)
+    interpreter_hist.interpret(3)
+    assert not interpreter_hist
     assert list(interpreter_hist) == []

@@ -16,21 +16,31 @@ class StateTree(Generic[T]):
         self._rest: Iterator[T] = iter_state
         self._searcher = searcher if searcher is not None else lambda x: x
 
+    def _peek(self):
+        if not self._evaluated:
+            self._evaluated.append(next(self._rest))
+
+    def __bool__(self) -> bool:
+        try:
+            self._peek()
+            return True
+        except StopIteration:
+            return False
+
     @property
     def current(self) -> T:
-        if not self._evaluated:
-            try:
-                self._evaluated.append(next(self._rest))
-            except StopIteration as exc:
-                raise RuntimeError('exhausted') from exc
+        try:
+            self._peek()
+        except StopIteration as exc:
+            raise RuntimeError('exhausted') from exc
         return self._evaluated[0]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[T]:
         if self._evaluated:
             yield self._evaluated.pop()
         yield from self._rest
 
-    def step(self, f: Callable[[T], List[T]]):
+    def step(self, f: Callable[[T], Iterable[T]]):
         tree = it.chain.from_iterable(it.chain(
             map(f, self._evaluated), map(f, self._rest)
         ))
